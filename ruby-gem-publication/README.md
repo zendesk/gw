@@ -20,6 +20,8 @@ This is the location of the workflow file relative to this repository you will n
 
 To use this workflow you should create a workflow in your repository calling this re-usable workflow. Please see an example of this below. You will need to request permissions for your repository to access a secret `RUBY_GEMS_TOTP_DEVICE` from your repository. You will also need to setup an environment within your repository called `rubygems-publish`. Where you will need to request for a RubyGems API key to be added with the name of `RUBY_GEMS_API_KEY`.
 
+
+Blah
 ## Example usage
 
 Here is an example workflow that will run when a commit is tagged with something begining with `v`
