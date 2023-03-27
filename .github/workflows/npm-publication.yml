@@ -1,0 +1,51 @@
+name: NPM Package Publication
+
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        required: false
+        type: string
+        default: '16'
+      command:
+        required: false
+        type: string
+        default: 'publish'
+    secrets:
+      NPM_TOKEN:
+        required: true
+
+jobs:
+  build:
+    name: Build + Publish
+    runs-on: [ubuntu-latest]
+    environment: npm-publish
+    steps:
+    - uses: zendesk/checkout@v3
+    - name: Set up Node.js
+      uses: zendesk/setup-node@v3
+      with:
+        node-version: ${{ inputs.node_version }}
+
+    - id: find-yarn-cache-folder
+      name: Find Yarn's cache folder
+      run: echo "::set-output name=path::$(yarn config get cacheFolder)"
+    - name: Cache Yarn's cache folder
+      uses: zendesk/cache@v3.2.5
+      with:
+        path: ${{ steps.find-yarn-cache-folder.outputs.path }}
+        key: yarn-cache-folder-os-${{ runner.os }}-node-${{ env.node-version }}-${{ hashFiles('yarn.lock') }}
+        restore-keys: |
+          yarn-cache-folder-os-${{ runner.os }}-node-${{ env.node-version }}-
+          yarn-cache-folder-os-${{ runner.os }}-
+
+    - name: Build and release
+      run: |
+        yarn install --immutable
+        yarn build
+        echo "//registry.yarnpkg.com/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+        yarn ${{ inputs.command }}
+        rm ~/.npmrc
+      env:
+        NPM_TOKEN: ${{secrets.NPM_TOKEN}}
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
