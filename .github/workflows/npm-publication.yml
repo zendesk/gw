@@ -45,7 +45,10 @@ jobs:
         yarn build
         echo "//registry.yarnpkg.com/:_authToken=$NPM_TOKEN" >> ~/.npmrc
         yarn ${{ inputs.command }}
-        rm ~/.npmrc
       env:
         NPM_TOKEN: ${{secrets.NPM_TOKEN}}
         GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
+    - name: Delete npmrc
+      if: always()
+      run: rm ~/.npmrc

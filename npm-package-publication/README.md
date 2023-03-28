@@ -41,7 +41,7 @@ jobs:
       NPM_TOKEN: ${{secrets.NPM_TOKEN}}
 ```
 
-Alternatively you can use any versioning command in `package.json` to automatically update the version number. You can
+Alternatively you can use any versioning command in `package.json` to automatically bump the version number. You can
 use this command in the `command` input.
 
 ```yml
