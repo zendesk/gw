@@ -43,7 +43,7 @@ jobs:
       run: |
         yarn install --immutable
         yarn build
-        echo "//registry.yarnpkg.com/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+        echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
         yarn ${{ inputs.command }}
       env:
         NPM_TOKEN: ${{secrets.NPM_TOKEN}}
