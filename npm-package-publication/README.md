@@ -1,7 +1,7 @@
 # Publish a Gem to NPMJS
 
 A workflow for publishing your package to NPM. This publishes to the **public** Zendesk NPM account. This requires you
-have a `package.json` file in the root of the repository configured for publishing.
+have a `package.json` file in the root of the repository configured for publishing and `.yarnrc.yaml` file with the nodeLinker set.
 
 ## Workflow file
 
@@ -11,11 +11,12 @@ This is the location of the workflow file relative to this repository you will n
 
 ## Required inputs
 
-| Input               | Description                                                                                                                           |
-|---------------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| `secrets.NPM_TOKEN` | required, The environment secret containing the NPM API key                                                                           |
-| `node_version`      | optional, default `16`, Version of node to be used with the build.                                                                    |
-| `command`           | optional, default `publish`. Command to be used with yarn to publish the package. Can be used to set automatic version number change. |
+| Input                      | Description                                                                                                                           |
+|----------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| `secrets.NPM_TOKEN`        | required, The environment secret containing the NPM API key                                                                           |
+| `secrets.NPM_TOTP_DEVICE`	 | required, The organization secret containing the NPMJS API key TOTP Code                                                              |
+| `node_version`             | optional, default `16`, Version of node to be used with the build.                                                                    |
+| `command`                  | optional, default `publish`. Command to be used with yarn to publish the package. Can be used to set automatic version number change. |
 
 ## How to use
 
@@ -39,6 +40,8 @@ jobs:
       node_version: '16'
     secrets:
       NPM_TOKEN: ${{secrets.NPM_TOKEN}}
+      NPM_TOTP_DEVICE: ${{secrets.NPM_TOTP_DEVICE}}
+
 ```
 
 Alternatively you can use any versioning command in `package.json` to automatically bump the version number. You can
@@ -57,6 +60,7 @@ jobs:
       command: 'release'
     secrets:
       NPM_TOKEN: ${{secrets.NPM_TOKEN}}
+      NPM_TOTP_DEVICE: ${{secrets.NPM_TOTP_DEVICE}}
 ```
 
 ```json

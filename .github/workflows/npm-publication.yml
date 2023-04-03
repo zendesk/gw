@@ -10,9 +10,11 @@ on:
       command:
         required: false
         type: string
-        default: 'publish'
+        default: 'npm publish'
     secrets:
       NPM_TOKEN:
+        required: true
+      NPM_TOTP_DEVICE:
         required: true
 
 jobs:
@@ -39,16 +41,26 @@ jobs:
           yarn-cache-folder-os-${{ runner.os }}-node-${{ env.node-version }}-
           yarn-cache-folder-os-${{ runner.os }}-
 
+    - name: Install oauth
+      run: |
+        sudo apt-get install --fix-broken --yes oathtool
+
     - name: Build and release
       run: |
         yarn install --immutable
         yarn build
-        echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-        yarn ${{ inputs.command }}
-      env:
-        NPM_TOKEN: ${{secrets.NPM_TOKEN}}
-        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        echo -e '\nnpmRegistryServer: "https://registry.npmjs.org"' >> .yarnrc.yml
+        echo 'npmAuthToken: $NPM_TOKEN' >> .yarnrc.yml
+        echo 'npmAlwaysAuth: true' >> .yarnrc.yml
+        totp=$(oathtool --base32 --totp "${NPM_TOTP_DEVICE}")
+        yarn ${{ inputs.command }} --otp $totp
 
-    - name: Delete npmrc
+      env:
+        NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NPM_TOTP_DEVICE: ${{ secrets.NPM_TOTP_DEVICE }}
+
+
+    - name: Clear the .yarnrc.yml file
       if: always()
-      run: rm ~/.npmrc
+      run: cat .yarnrc.yml | sed -n -e :a -e '1,4!{P;N;D;};N;ba' > .yarnrc.yml
