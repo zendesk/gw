@@ -23,44 +23,49 @@ jobs:
     runs-on: [ubuntu-latest]
     environment: npm-publish
     steps:
-    - uses: zendesk/checkout@v3
-    - name: Set up Node.js
-      uses: zendesk/setup-node@v3
-      with:
-        node-version: ${{ inputs.node_version }}
+      - uses: zendesk/checkout@v3
+      - name: Set up Node.js
+        uses: zendesk/setup-node@v3
+        with:
+          node-version: ${{ inputs.node_version }}
 
-    - id: find-yarn-cache-folder
-      name: Find Yarn's cache folder
-      run: echo "::set-output name=path::$(yarn config get cacheFolder)"
-    - name: Cache Yarn's cache folder
-      uses: zendesk/cache@v3.2.5
-      with:
-        path: ${{ steps.find-yarn-cache-folder.outputs.path }}
-        key: yarn-cache-folder-os-${{ runner.os }}-node-${{ env.node-version }}-${{ hashFiles('yarn.lock') }}
-        restore-keys: |
-          yarn-cache-folder-os-${{ runner.os }}-node-${{ env.node-version }}-
-          yarn-cache-folder-os-${{ runner.os }}-
+      - id: find-yarn-cache-folder
+        name: Find Yarn's cache folder
+        run: echo "::set-output name=path::$(yarn config get cacheFolder)"
+      - name: Cache Yarn's cache folder
+        uses: zendesk/cache@v3.2.5
+        with:
+          path: ${{ steps.find-yarn-cache-folder.outputs.path }}
+          key: yarn-cache-folder-os-${{ runner.os }}-node-${{ env.node-version }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            yarn-cache-folder-os-${{ runner.os }}-node-${{ env.node-version }}-
+            yarn-cache-folder-os-${{ runner.os }}-
 
-    - name: Install oauth
-      run: |
-        sudo apt-get install --fix-broken --yes oathtool
+      - name: Install oauth
+        run: |
+          sudo apt-get install --fix-broken --yes oathtool
 
-    - name: Build and release
-      run: |
-        yarn install --immutable
-        yarn build
-        echo -e '\nnpmRegistryServer: "https://registry.npmjs.org"' >> .yarnrc.yml
-        echo 'npmAuthToken: $NPM_TOKEN' >> .yarnrc.yml
-        echo 'npmAlwaysAuth: true' >> .yarnrc.yml
-        totp=$(oathtool --base32 --totp "${NPM_TOTP_DEVICE}")
-        yarn ${{ inputs.command }} --otp $totp
+      - name: Setup yarn
+        run: |
+          yarn config set npmPublishAccess public
+          yarn config set npmAlwaysAuth true
+          yarn config set npmRegistryServer https://registry.npmjs.org
+          yarn config set npmAuthToken $NPM_TOKEN
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      env:
-        NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        NPM_TOTP_DEVICE: ${{ secrets.NPM_TOTP_DEVICE }}
+      - name: Build and release
+        run: |
+          yarn install --immutable
+          yarn build
+          totp=$(oathtool --base32 --totp "${NPM_TOTP_DEVICE}")
+          yarn ${{ inputs.command }} --otp $totp
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOTP_DEVICE: ${{ secrets.NPM_TOTP_DEVICE }}
 
 
-    - name: Clear the .yarnrc.yml file
-      if: always()
-      run: cat .yarnrc.yml | sed -n -e :a -e '1,4!{P;N;D;};N;ba' > .yarnrc.yml
+      - name: Clear the .yarnrc.yml file
+        if: always()
+        run: rm -f .yarnrc.yml

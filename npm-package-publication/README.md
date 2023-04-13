@@ -22,7 +22,7 @@ This is the location of the workflow file relative to this repository you will n
 
 To use this workflow you should create a workflow in your repository calling this re-usable workflow. Please see an
 example of this below. You will need to setup an environment within your repository called `npm-publish`. Where you will
-need to request for a NPM API key to be added with the name of `NPM_TOKEN`.
+need to request for a NPM API key to be added with the name of `NPM_TOKEN` and the 2FA secret `NPM_TOTP_DEVICE`.
 
 ## Example usage
 
