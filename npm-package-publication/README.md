@@ -17,6 +17,7 @@ This is the location of the workflow file relative to this repository you will n
 | `secrets.NPM_TOTP_DEVICE`	 | required, The organization secret containing the NPMJS API key TOTP Code                                                              |
 | `node_version`             | optional, default `16`, Version of node to be used with the build.                                                                    |
 | `command`                  | optional, default `publish`. Command to be used with yarn to publish the package. Can be used to set automatic version number change. |
+| `publicize`                | optional, default `true`. Upload the package as private. For testing purposes only.                                                   |
 
 ## How to use
 
@@ -35,7 +36,7 @@ on:
 
 jobs:
   call-workflow:
-    uses: zendesk/gw/.github/workflows/npm-publication.yml@master
+    uses: zendesk/gw/.github/workflows/npm-publication.yml@main
     with:
       node_version: '16'
     secrets:
@@ -54,7 +55,7 @@ on:
 
 jobs:
   call-workflow:
-    uses: zendesk/gw/.github/workflows/npm-publication.yml@master
+    uses: zendesk/gw/.github/workflows/npm-publication.yml@main
     with:
       node_version: '16'
       command: 'release'
@@ -92,4 +93,12 @@ jobs:
   }
 [...]
 }
+```
+
+Another example with `npm version patch` command.
+
+```yml
+"scripts": {
+    "release": "npm version patch --force && npm publish"
+  }
 ```
