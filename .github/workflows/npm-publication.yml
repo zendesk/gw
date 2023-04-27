@@ -11,6 +11,10 @@ on:
         required: false
         type: string
         default: 'npm publish'
+      commit:
+        required: false
+        type: boolean
+        default: false
       publicize:
         required: false
         type: boolean
@@ -58,6 +62,11 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Git config user
+        run: |
+          git config user.name zendesk-ops-ci
+          git config user.email zendesk-ops-ci@users.noreply.github.com
+
       - name: Build and release
         run: |
           yarn install --immutable
@@ -69,6 +78,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOTP_DEVICE: ${{ secrets.NPM_TOTP_DEVICE }}
 
+      - name: Git push
+        if: ${{ inputs.commit }}
+        run: |
+          git push origin ${{ github.head_ref || github.ref_name }}
 
       - name: Clear the .yarnrc.yml file
         if: always()
