@@ -1,0 +1,39 @@
+name: Publish Gem to private gem server (Artifactory)
+
+on:
+  workflow_call:
+    inputs:
+      ruby_version:
+        required: false
+        type: string
+        default: '3.2'
+    secrets:
+      ARTIFACTORY_API_KEY:
+        required: true
+      ARTIFACTORY_USERNAME:
+        required: true
+
+jobs:
+  build:
+    name: Build and publish gem
+    runs-on: [ubuntu-latest]
+    environment: artifactory-publish
+    steps:
+    - uses: zendesk/checkout@v3
+    - name: Set up Ruby
+      uses: zendesk/setup-ruby@v1
+      with:
+        ruby-version: ${{ inputs.ruby_version }}
+
+    - name: Publish to Artifactory
+      run: |
+        mkdir -p $HOME/.gem
+        curl -u $ARTIFACTORY_USERNAME:$ARTIFACTORY_API_KEY \
+          https://zdrepo.jfrog.io/artifactory/api/gems/gems-local/api/v1/api_key.yaml > $HOME/.gem/credentials
+        chmod 0600 $HOME/.gem/credentials
+        gem build *.gemspec
+        gem push *.gem --host https://zdrepo.jfrog.io/artifactory/api/gems/gems-local
+        rm -f $HOME/.gem/credentials
+      env:
+        ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
+        ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}

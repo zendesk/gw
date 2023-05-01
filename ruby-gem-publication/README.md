@@ -11,14 +11,14 @@ This is the location of the workflow file relative to this repository you will n
 ## Required inputs
 
 | Input                             | Description                                                                 |
-| --------------------------------- | ----------------------------------------------------------------------------|
-| `secrets.RUBY_GEMS_API_KEY`     | required, The environment secret containing the RubyGems API key            |
+| --------------------------------- | --------------------------------------------------------------------------- |
+| `secrets.RUBY_GEMS_API_KEY`       | required, The environment secret containing the RubyGems API key            |
 | `secrets.RUBY_GEMS_TOTP_DEVICE`   | required, The organization secret containing the RubyGems API key TOTP Code |
-| `RUBY_VERSION`                    | optional, default `2.6`, Version of ruby to be used with the build.         |
+| `RUBY_VERSION`                    | optional, default `3.2`, Version of ruby to be used with the build.         |
 
 ## How to use
 
-To use this workflow you should create a workflow in your repository calling this re-usable workflow. Please see an example of this below. You will need to request permissions for your repository to access a secret `RUBY_GEMS_TOTP_DEVICE` from your repository. You will also need to setup an environment within your repository called `rubygems-publish`. Where you will need to request for a RubyGems API key to be added with the name of `RUBY_GEMS_API_KEY`.
+To use this workflow you should create a workflow in your repository calling this re-usable workflow. Please see an example of this below. You will need to request permissions for your repository to access a secret `RUBY_GEMS_TOTP_DEVICE` from your repository. You will also need to set up an environment within your repository called `rubygems-publish` where you will need to request for a RubyGems API key to be added with the name of `RUBY_GEMS_API_KEY`.
 
 ## Example usage
 

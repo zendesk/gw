@@ -1,4 +1,4 @@
-name: Ruby Gem
+name: Publish Gem to public gem server
 
 on:
   workflow_call:
@@ -6,7 +6,7 @@ on:
       ruby_version:
         required: false
         type: string
-        default: '2.6'
+        default: '3.2'
     secrets:
       RUBY_GEMS_API_KEY:
         required: true
@@ -15,7 +15,7 @@ on:
 
 jobs:
   build:
-    name: Build + Publish
+    name: Build and publish gem
     runs-on: [ubuntu-latest]
     environment: rubygems-publish
     steps:
