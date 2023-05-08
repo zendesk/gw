@@ -55,8 +55,12 @@ jobs:
 
       - name: Setup yarn
         run: |
-          yarn config set npmPublishAccess public
-          yarn config set npmAlwaysAuth ${{ inputs.publicize }}
+          if {{ inputs.publicize }}; then
+            yarn config set npmPublishAccess public
+          else
+            yarn config set npmPublishAccess restricted
+          fi
+          yarn config set npmAlwaysAuth true
           yarn config set npmRegistryServer https://registry.npmjs.org
           yarn config set npmAuthToken $NPM_TOKEN
         env:
