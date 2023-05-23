@@ -1,4 +1,4 @@
-# Publish a Gem to NPMJS
+# Publish a NPM package to NPMJS.org
 
 A workflow for publishing your package to NPM. This publishes to the **public** Zendesk NPM account. This requires you
 have a `package.json` file in the root of the repository configured for publishing and `.yarnrc.yaml` file with the nodeLinker set.
