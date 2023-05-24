@@ -16,13 +16,13 @@ To call it from your repository you'll need to use:
 
 ## Required inputs
 
-| Input                     | Description                                                                                                                           |
-|---------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| `secrets.NPM_TOKEN`       | required, The environment secret containing the NPM API key                                                                           |
-| `secrets.NPM_TOTP_DEVICE` | required, The organization secret containing the NPMJS API key TOTP Code                                                              |
-| `node_version`            | optional, default `16`, Version of node to be used with the build.                                                                    |
-| `command`                 | optional, default `publish`. Command to be used with yarn to publish the package. Can be used to set automatic version number change. |
-| `commit`                  | optional, default `false`. Pushes the commit that might have been generated during the build. See [example](#Example-usage).          |
+| Input                     | Description                                                                                                                         |
+|---------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| `secrets.NPM_TOKEN`       | required, The environment secret containing the NPM API key                                                                         |
+| `secrets.NPM_TOTP_DEVICE` | required, The organization secret containing the NPMJS API key TOTP Code                                                            |
+| `node_version`            | optional, default `16`, Version of Node to be used with the build.                                                                  |
+| `command`                 | optional, default `publish`. Command to be used with yarn to publish the package. Can be used to set automatic version number bump. |
+| `commit`                  | optional, default `false`. Pushes the commit that might have been generated during the build. See [example](#Example-usage).        |
 
 ## How to use
 
