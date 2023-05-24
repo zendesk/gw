@@ -15,10 +15,6 @@ on:
         required: false
         type: boolean
         default: false
-      publicize:
-        required: false
-        type: boolean
-        default: true
     secrets:
       NPM_TOKEN:
         required: true
@@ -36,6 +32,11 @@ jobs:
         uses: zendesk/setup-node@v3
         with:
           node-version: ${{ inputs.node_version }}
+      # Use yarn2
+      - name: Install Yarn
+        run: npm install -g yarn
+      - name: Set Yarn Version
+        run: yarn set version berry
 
       - id: find-yarn-cache-folder
         name: Find Yarn's cache folder
@@ -55,11 +56,7 @@ jobs:
 
       - name: Setup yarn
         run: |
-          if {{ inputs.publicize }}; then
-            yarn config set npmPublishAccess public
-          else
-            yarn config set npmPublishAccess restricted
-          fi
+          yarn config set npmPublishAccess public
           yarn config set npmAlwaysAuth true
           yarn config set npmRegistryServer https://registry.npmjs.org
           yarn config set npmAuthToken $NPM_TOKEN
