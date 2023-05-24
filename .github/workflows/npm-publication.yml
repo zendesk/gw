@@ -36,6 +36,11 @@ jobs:
         uses: zendesk/setup-node@v3
         with:
           node-version: ${{ inputs.node_version }}
+      # Use yarn2
+      - name: Install Yarn
+        run: npm install -g yarn
+      - name: Set Yarn Version
+        run: yarn set version berry
 
       - id: find-yarn-cache-folder
         name: Find Yarn's cache folder
