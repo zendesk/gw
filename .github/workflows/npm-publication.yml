@@ -15,10 +15,6 @@ on:
         required: false
         type: boolean
         default: false
-      publicize:
-        required: false
-        type: boolean
-        default: true
     secrets:
       NPM_TOKEN:
         required: true
@@ -60,11 +56,7 @@ jobs:
 
       - name: Setup yarn
         run: |
-          if {{ inputs.publicize }}; then
-            yarn config set npmPublishAccess public
-          else
-            yarn config set npmPublishAccess restricted
-          fi
+          yarn config set npmPublishAccess public
           yarn config set npmAlwaysAuth true
           yarn config set npmRegistryServer https://registry.npmjs.org
           yarn config set npmAuthToken $NPM_TOKEN

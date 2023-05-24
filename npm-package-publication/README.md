@@ -18,7 +18,6 @@ This is the location of the workflow file relative to this repository you will n
 | `node_version`             | optional, default `16`, Version of node to be used with the build.                                                                  |
 | `command`                  | optional, default `publish`. Command to be used with yarn to publish the package. Can be used to set automatic version number change. |
 | `commit`                  | optional, default `false`. Pushes the commit that might have been generated during the build. See [example](#Example-usage).        |
-| `publicize`                | optional, default `true`. Upload the package as public. Disable for testing purposes only.                                          |
 
 ## How to use
 
