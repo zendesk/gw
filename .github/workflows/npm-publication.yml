@@ -1,0 +1,90 @@
+name: NPM Package Publication
+
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        required: false
+        type: string
+        default: '16'
+      command:
+        required: false
+        type: string
+        default: 'npm publish'
+      commit:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      NPM_TOKEN:
+        required: true
+      NPM_TOTP_DEVICE:
+        required: true
+
+jobs:
+  build:
+    name: Build + Publish
+    runs-on: [ubuntu-latest]
+    environment: npm-publish
+    steps:
+      - uses: zendesk/checkout@v3
+      - name: Set up Node.js
+        uses: zendesk/setup-node@v3
+        with:
+          node-version: ${{ inputs.node_version }}
+      # Use yarn2
+      - name: Install Yarn
+        run: npm install -g yarn
+      - name: Set Yarn Version
+        run: yarn set version berry
+
+      - id: find-yarn-cache-folder
+        name: Find Yarn's cache folder
+        run: echo "YARN_CACHE_FOLDER=$(yarn config get cacheFolder)" >> $GITHUB_ENV
+
+      - name: Cache Yarn's cache folder
+        uses: zendesk/cache@v3.2.5
+        with:
+          path: ${{ env.YARN_CACHE_FOLDER }}
+          key: yarn-cache-folder-os-${{ runner.os }}-node-${{ env.node-version }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            yarn-cache-folder-os-${{ runner.os }}-node-${{ env.node-version }}-
+            yarn-cache-folder-os-${{ runner.os }}-
+
+      - name: Install oauth
+        run: |
+          sudo apt-get install --fix-broken --yes oathtool
+
+      - name: Setup yarn
+        run: |
+          yarn config set npmPublishAccess public
+          yarn config set npmAlwaysAuth true
+          yarn config set npmRegistryServer https://registry.npmjs.org
+          yarn config set npmAuthToken $NPM_TOKEN
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Git config user
+        run: |
+          git config user.name zendesk-ops-ci
+          git config user.email zendesk-ops-ci@users.noreply.github.com
+
+      - name: Build and release
+        run: |
+          yarn install --immutable
+          yarn build
+          totp=$(oathtool --base32 --totp "${NPM_TOTP_DEVICE}")
+          yarn ${{ inputs.command }} --otp $totp
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOTP_DEVICE: ${{ secrets.NPM_TOTP_DEVICE }}
+
+      - name: Git push
+        if: ${{ inputs.commit }}
+        run: |
+          git push origin ${{ github.head_ref || github.ref_name }}
+
+      - name: Clear the .yarnrc.yml file
+        if: always()
+        run: rm -f .yarnrc.yml
