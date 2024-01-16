@@ -14,7 +14,7 @@ This is the location of the workflow file relative to this repository you will n
 | --------------------------------- | ----------------------------------------------------------------------------|
 | `secrets.RUBY_GEMS_API_KEY`     | required, The environment secret containing the RubyGems API key            |
 | `secrets.RUBY_GEMS_TOTP_DEVICE`   | required, The organization secret containing the RubyGems API key TOTP Code |
-| `RUBY_VERSION`                    | optional, default `2.6`, Version of ruby to be used with the build.         |
+| `RUBY_VERSION`                    | optional, default `3.3`, Version of ruby to be used with the build.         |
 
 ## How to use
 

@@ -6,7 +6,7 @@ on:
       ruby_version:
         required: false
         type: string
-        default: '2.6'
+        default: '3.3'
     secrets:
       RUBY_GEMS_API_KEY:
         required: true
