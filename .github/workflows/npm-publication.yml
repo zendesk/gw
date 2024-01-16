@@ -27,9 +27,9 @@ jobs:
     runs-on: [ubuntu-latest]
     environment: npm-publish
     steps:
-      - uses: zendesk/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Node.js
-        uses: zendesk/setup-node@v3
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ inputs.node_version }}
       # Use yarn2
@@ -43,7 +43,7 @@ jobs:
         run: echo "YARN_CACHE_FOLDER=$(yarn config get cacheFolder)" >> $GITHUB_ENV
 
       - name: Cache Yarn's cache folder
-        uses: zendesk/cache@v3.2.5
+        uses: actions/cache@v3
         with:
           path: ${{ env.YARN_CACHE_FOLDER }}
           key: yarn-cache-folder-os-${{ runner.os }}-node-${{ env.node-version }}-${{ hashFiles('yarn.lock') }}
