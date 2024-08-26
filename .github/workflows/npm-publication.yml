@@ -43,7 +43,7 @@ jobs:
         run: echo "YARN_CACHE_FOLDER=$(yarn config get cacheFolder)" >> $GITHUB_ENV
 
       - name: Cache Yarn's cache folder
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ env.YARN_CACHE_FOLDER }}
           key: yarn-cache-folder-os-${{ runner.os }}-node-${{ env.node-version }}-${{ hashFiles('yarn.lock') }}
