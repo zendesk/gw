@@ -17,9 +17,9 @@ on:
         default: false
     secrets:
       NPM_TOKEN:
-        required: true
+        required: false
       NPM_TOTP_DEVICE:
-        required: true
+        required: false
 
 jobs:
   build:
@@ -58,11 +58,7 @@ jobs:
       - name: Setup yarn
         run: |
           yarn config set npmPublishAccess public
-          yarn config set npmAlwaysAuth true
           yarn config set npmRegistryServer https://registry.npmjs.org
-          yarn config set npmAuthToken $NPM_TOKEN
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Git config user
         run: |
@@ -73,12 +69,9 @@ jobs:
         run: |
           yarn install --immutable
           yarn build
-          totp=$(oathtool --base32 --totp "${NPM_TOTP_DEVICE}")
-          yarn ${{ inputs.command }} --otp $totp
+          yarn ${{ inputs.command }}
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOTP_DEVICE: ${{ secrets.NPM_TOTP_DEVICE }}
 
       - name: Git push
         if: ${{ inputs.commit }}
