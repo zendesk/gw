@@ -86,9 +86,6 @@ jobs:
           NPM_TOTP_SECRET: ${{ secrets.NPM_TOTP_SECRET }}
         run: |
           set -euo pipefail
-          workflow="${PUBLISH_WORKFLOW#./}"
-          workflow="${workflow#.github/workflows/}"
-          workflow="${workflow##*/}"
           otp="$(oathtool --base32 --totp "$NPM_TOTP_SECRET")"
           url="https://registry.npmjs.org/-/package/${PACKAGE_NAME//\//%2F}/trust"
           curl_args=(-H "Authorization: Bearer $NPM_TOKEN" -H "npm-otp: $otp")
@@ -99,7 +96,7 @@ jobs:
             exit 0
           fi
 
-          body="$(jq -nc --arg repo "$REPOSITORY" --arg wf "$workflow" --arg env "$ENVIRONMENT" \
+          body="$(jq -nc --arg repo "$REPOSITORY" --arg wf "$PUBLISH_WORKFLOW" --arg env "$ENVIRONMENT" \
             '[{type:"github",claims:{repository:$repo,workflow_ref:{file:$wf},environment:$env},permissions:["createPackage"]}]')"
 
           curl -fsS -X POST "$url" "${curl_args[@]}" -H 'Content-Type: application/json' -d "$body"
