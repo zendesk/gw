@@ -1,0 +1,105 @@
+name: NPM Trusted Publication
+
+on:
+  workflow_call:
+    inputs:
+      package-name:
+        required: true
+        type: string
+      package-json-file-path:
+        required: false
+        type: string
+        default: package.json
+      publish-workflow:
+        required: true
+        type: string
+      repository:
+        required: true
+        type: string
+      github-environment:
+        required: false
+        type: string
+        default: npm-publish
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.github-environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.14'
+          registry-url: https://registry.npmjs.org
+
+      - name: Setup
+        run: |
+          npm install -g npm@latest
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends oathtool jq
+
+      - name: Validate package json file path and name
+        env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
+          PACKAGE_JSON_FILE_PATH: ${{ inputs.package-json-file-path }}
+        run: |
+          set -euo pipefail
+          [[ "$PACKAGE_JSON_FILE_PATH" != /* ]] || { echo "package-json-file-path must not be an absolute path"; exit 1; }
+          [[ -f "$PACKAGE_JSON_FILE_PATH" ]] || { echo "package-json-file-path does not exist"; exit 1; }
+          [[ "$(node -p "require('./$PACKAGE_JSON_FILE_PATH').name")" == "$PACKAGE_NAME" ]] || { echo "package-name does not match package.json name"; exit 1; }
+      
+      - name: Check if package exists on npm
+        id: package-exists
+        env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if npm view "$PACKAGE_NAME" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      
+      - name: Initial publish with token
+        if: steps.package-exists.outputs.exists != 'true'
+        env:
+          PACKAGE_JSON_FILE_PATH: ${{ inputs.package-json-file-path }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOTP_SECRET: ${{ secrets.NPM_TOTP_SECRET }}
+        run: |
+          set -euo pipefail
+          otp="$(oathtool --base32 --totp "$NPM_TOTP_SECRET")"
+          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
+          npm publish --prefix "$(dirname "$PACKAGE_JSON_FILE_PATH")" --otp "$otp"
+
+      - name: Configure trusted publisher
+        env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
+          PUBLISH_WORKFLOW: ${{ inputs.publish-workflow }}
+          REPOSITORY: ${{ inputs.repository }}
+          ENVIRONMENT: ${{ inputs.github-environment }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOTP_SECRET: ${{ secrets.NPM_TOTP_SECRET }}
+        run: |
+          set -euo pipefail
+          workflow="${PUBLISH_WORKFLOW#./}"
+          workflow="${workflow#.github/workflows/}"
+          workflow="${workflow##*/}"
+          otp="$(oathtool --base32 --totp "$NPM_TOTP_SECRET")"
+          url="https://registry.npmjs.org/-/package/${PACKAGE_NAME//\//%2F}/trust"
+          curl_args=(-H "Authorization: Bearer $NPM_TOKEN" -H "npm-otp: $otp")
+
+          trust="$(curl -fsS "${curl_args[@]}" "$url" 2>/dev/null || echo '[]')"
+          if [[ -n "$trust" && "$trust" != "[]" && "$trust" != "{}" ]]; then
+            echo "Trusted publisher for $PACKAGE_NAME is already configured"
+            exit 0
+          fi
+
+          body="$(jq -nc --arg repo "$REPOSITORY" --arg wf "$workflow" --arg env "$ENVIRONMENT" \
+            '[{type:"github",claims:{repository:$repo,workflow_ref:{file:$wf},environment:$env},permissions:["createPackage"]}]')"
+
+          curl -fsS -X POST "$url" "${curl_args[@]}" -H 'Content-Type: application/json' -d "$body"
