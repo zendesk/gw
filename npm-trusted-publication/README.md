@@ -79,12 +79,21 @@ jobs:
   publish:
     needs: build
     uses: zendesk/gw/.github/workflows/npm-trusted-publication.yml@main
+    secrets: inherit
     with:
       package-name: '@zendesk/example-package'
       package-json-file-path: package.json
       publish-workflow: publish-package.yml
       repository: ${{ github.repository }}
       github-environment: npm-publish
+```
+
+Or pass secrets explicitly:
+
+```yml
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      NPM_TOTP_SECRET: ${{ secrets.NPM_TOTP_SECRET }}
 ```
 
 ## Validation rules

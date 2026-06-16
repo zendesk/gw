@@ -20,6 +20,11 @@ on:
         required: false
         type: string
         default: npm-publish
+    secrets:
+      NPM_TOKEN:
+        required: true
+      NPM_TOTP_SECRET:
+        required: true
 
 permissions:
   contents: read
@@ -36,7 +41,7 @@ jobs:
           node-version: '22.14'
           registry-url: https://registry.npmjs.org
 
-      - name: Setup
+      - name: Install dependencies
         run: |
           npm install -g npm@latest
           sudo apt-get update && sudo apt-get install -y --no-install-recommends oathtool jq
@@ -73,8 +78,8 @@ jobs:
         run: |
           set -euo pipefail
           otp="$(oathtool --base32 --totp "$NPM_TOTP_SECRET")"
-          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
-          npm publish --prefix "$(dirname "$PACKAGE_JSON_FILE_PATH")" --otp "$otp"
+          npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+          npm publish --prefix "$(dirname "$PACKAGE_JSON_FILE_PATH")" --access public --otp "$otp"
 
       - name: Configure trusted publisher
         env:
