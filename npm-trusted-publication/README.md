@@ -18,7 +18,8 @@ Call it from your repository with:
 
 - Node.js `>= 22.14`
 - npm CLI `>= 11.5.1` (installed automatically)
-- A GitHub environment (default: `npm-publish`) in the parent repository
+- A GitHub environment (default: `npm-publish`) on the **parent workflow's OIDC publish job**
+- `secrets: inherit` in the caller workflow (repo/org secrets are not passed automatically)
 - `permissions.id-token: write` in the parent workflow that performs OIDC publish
 
 For packages that do not exist on npm yet, the workflow performs an initial token-based publish before configuring the trusted publisher. Existing packages only get trusted publisher configuration — publish is handled separately by the parent workflow.
@@ -31,14 +32,15 @@ For packages that do not exist on npm yet, the workflow performs an initial toke
 | `package-json-file-path` | Relative path to `package.json` (default: `package.json`) |
 | `publish-workflow` | Parent workflow filename, for example `publish.yml` |
 | `repository` | Parent repository in `owner/repo` format |
-| `github-environment` | GitHub environment name (default: `npm-publish`) |
+| `github-environment` | GitHub environment name registered with npm trusted publishing (default: `npm-publish`). Used only in the trust API claim — this reusable workflow does not bind to that environment. |
 
 ## Required secrets
 
+Pass secrets with `secrets: inherit`.
+
 | Secret | Description |
 | --- | --- |
-| `NPM_TOKEN` | NPM API token for initial publish and trusted publisher API calls (`zd-svc-npmjs`) |
-| `NPM_TOTP_SECRET` | NPM 2FA TOTP secret (`npm-otp` header for trust API, `--otp` for initial publish) |
+| `NPM_TOTP_DEVICE` | NPM 2FA TOTP secret (`npm-otp` header for trust API, `--otp` for initial publish). Typically an organization secret. |
 
 Subsequent publishes use OIDC in the parent workflow and do not require `NPM_TOKEN`.
 
@@ -88,12 +90,20 @@ jobs:
       github-environment: npm-publish
 ```
 
-Or pass secrets explicitly:
+OIDC publishes in the parent workflow should use the environment directly:
 
 ```yml
-    secrets:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      NPM_TOTP_SECRET: ${{ secrets.NPM_TOTP_SECRET }}
+  oidc-publish:
+    runs-on: ubuntu-latest
+    environment: npm-publish
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.14'
+          registry-url: https://registry.npmjs.org
+      - run: npm publish --access public
 ```
 
 ## Validation rules
