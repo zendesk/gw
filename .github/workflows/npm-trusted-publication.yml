@@ -20,15 +20,8 @@ on:
         required: false
         type: string
         default: npm-publish
-    secrets:
-      NPM_TOKEN:
-        required: true
-      NPM_TOTP_SECRET:
-        required: true
-
 permissions:
   contents: read
-
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -74,10 +67,10 @@ jobs:
         env:
           PACKAGE_JSON_FILE_PATH: ${{ inputs.package-json-file-path }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOTP_SECRET: ${{ secrets.NPM_TOTP_SECRET }}
+          NPM_TOTP_DEVICE: ${{ secrets.NPM_TOTP_DEVICE }}
         run: |
           set -euo pipefail
-          otp="$(oathtool --base32 --totp "$NPM_TOTP_SECRET")"
+          otp="$(oathtool --base32 --totp "$NPM_TOTP_DEVICE")"
           npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
           npm publish --prefix "$(dirname "$PACKAGE_JSON_FILE_PATH")" --access public --otp "$otp"
 
@@ -88,10 +81,10 @@ jobs:
           REPOSITORY: ${{ inputs.repository }}
           ENVIRONMENT: ${{ inputs.github-environment }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOTP_SECRET: ${{ secrets.NPM_TOTP_SECRET }}
+          NPM_TOTP_DEVICE: ${{ secrets.NPM_TOTP_DEVICE }}
         run: |
           set -euo pipefail
-          otp="$(oathtool --base32 --totp "$NPM_TOTP_SECRET")"
+          otp="$(oathtool --base32 --totp "$NPM_TOTP_DEVICE")"
           url="https://registry.npmjs.org/-/package/${PACKAGE_NAME//\//%2F}/trust"
           curl_args=(-H "Authorization: Bearer $NPM_TOKEN" -H "npm-otp: $otp")
 
