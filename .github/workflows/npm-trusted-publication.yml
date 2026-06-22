@@ -20,12 +20,12 @@ on:
         required: false
         type: string
         default: npm-publish
-    
-secrets:
-  NPM_TOKEN:
-    required: true
-  NPM_TOTP_DEVICE:
-    required: true
+    secrets:
+      NPM_TOKEN:
+        required: true
+      NPM_TOTP_DEVICE:
+        required: true
+
 permissions:
   contents: read
 jobs:
