@@ -36,11 +36,26 @@ For packages that do not exist on npm yet, the workflow performs an initial toke
 
 ## Required secrets
 
-Pass secrets with `secrets: inherit`.
+Pass secrets with `secrets: inherit` in the caller workflow.
+
+Secrets are resolved from the **caller repository** (and organization), not from `zendesk/gw`. A secret stored only on `gw` is not available when another repository calls this workflow.
+
+### Repository secrets (per publishing repo)
+
+Add these as **repository secrets** on each repo that calls this workflow (for example `zendesk/npmjs-release-test`):
 
 | Secret | Description |
 | --- | --- |
-| `NPM_TOTP_DEVICE` | NPM 2FA TOTP secret (`npm-otp` header for trust API, `--otp` for initial publish). Typically an organization secret. |
+| `NPM_TOKEN` | NPM API token for initial publish and trusted publisher API calls (`zd-svc-npmjs`) |
+| `NPM_TOTP_DEVICE` | NPM 2FA TOTP secret (`npm-otp` header for trust API, `--otp` for initial publish) |
+
+Repository secrets must **not** be restricted to an environment only. If `NPM_TOKEN` is limited to the `npm-publish` environment, the caller job cannot access it (reusable workflow caller jobs cannot declare `environment:`).
+
+Request values via `#ask-packaging`.
+
+### Organization secrets (alternative)
+
+`NPM_TOTP_DEVICE` is often an organization secret shared across publishing repos. `NPM_TOKEN` can be configured the same way if you prefer not to duplicate secrets per repository.
 
 Subsequent publishes use OIDC in the parent workflow and do not require `NPM_TOKEN`.
 
