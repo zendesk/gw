@@ -41,7 +41,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install -g npm@latest
+          npm install -g npm@11.5.1
           sudo apt-get update && sudo apt-get install -y --no-install-recommends oathtool jq
 
       - name: Validate package json file path and name
@@ -62,11 +62,22 @@ jobs:
         run: |
           set -euo pipefail
           if npm view "$PACKAGE_NAME" version >/dev/null 2>&1; then
+            echo "Package $PACKAGE_NAME exists on npmjs"
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
+            echo "Package $PACKAGE_NAME does not exist on npmjs"
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
       
+      - name: Set base version
+        if: steps.package-exists.outputs.exists != 'true'
+        env:
+          PACKAGE_JSON_FILE_PATH: ${{ inputs.package-json-file-path }}
+        run: |
+          set -euo pipefail
+          cd "$(dirname "$PACKAGE_JSON_FILE_PATH")"
+          npm version 0.0.0 --no-git-tag-version --allow-same-version
+
       - name: Initial publish with token
         if: steps.package-exists.outputs.exists != 'true'
         env:
@@ -78,6 +89,8 @@ jobs:
           otp="$(oathtool --base32 --totp "$NPM_TOTP_DEVICE")"
           npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
           npm publish --prefix "$(dirname "$PACKAGE_JSON_FILE_PATH")" --access public --otp "$otp"
+          echo "Sleeping for 15 seconds for npmjs to reflect the new $PACKAGE_NAME package, so that the trusted publisher can be configured"
+          sleep 15
 
       - name: Configure trusted publisher
         env:
@@ -94,12 +107,40 @@ jobs:
           curl_args=(-H "Authorization: Bearer $NPM_TOKEN" -H "npm-otp: $otp")
 
           trust="$(curl -fsS "${curl_args[@]}" "$url" 2>/dev/null || echo '[]')"
-          if [[ -n "$trust" && "$trust" != "[]" && "$trust" != "{}" ]]; then
-            echo "Trusted publisher for $PACKAGE_NAME is already configured"
-            exit 0
-          fi
+          plan="$(jq -c \
+            --arg repo "$REPOSITORY" \
+            --arg wf "$PUBLISH_WORKFLOW" \
+            --arg env "$ENVIRONMENT" \
+            --arg pkg "$PACKAGE_NAME" \
+            '
+            def entries: if type == "array" then . elif (type == "object" and . != {}) then [.] else [] end;
+            def matches($e): any($e[]; .type == "github" and .claims.repository == $repo and .claims.workflow_ref.file == $wf and .claims.environment == $env);
+            entries as $e
+            | matches($e) as $matched
+            | {
+                matched: $matched,
+                logs: (
+                  if $matched then
+                    ["Trusted publisher for \($pkg) already matches inputs"]
+                  elif ($e | length) > 0 then
+                    ["Trusted publisher mismatch for \($pkg)"]
+                    + ($e | map("  current: repository=\(.claims.repository) workflow=\(.claims.workflow_ref.file) environment=\(.claims.environment)"))
+                    + ["  expected: repository=\($repo) workflow=\($wf) environment=\($env)"]
+                  else
+                    ["No trusted publisher configured for \($pkg)"]
+                  end
+                ),
+                ids: ($e | map(.id // empty)),
+                body: [{type:"github",claims:{repository:$repo,workflow_ref:{file:$wf},environment:$env},permissions:["createPackage"]}]
+              }
+            ' <<<"${trust:-[]}")"
 
-          body="$(jq -nc --arg repo "$REPOSITORY" --arg wf "$PUBLISH_WORKFLOW" --arg env "$ENVIRONMENT" \
-            '[{type:"github",claims:{repository:$repo,workflow_ref:{file:$wf},environment:$env},permissions:["createPackage"]}]')"
+          jq -r '.logs[]' <<<"$plan"
+          jq -e '.matched' <<<"$plan" >/dev/null && exit 0
 
-          curl -fsS -X POST "$url" "${curl_args[@]}" -H 'Content-Type: application/json' -d "$body"
+          while read -r id; do
+            [[ -n "$id" ]] && curl -fsS -X DELETE "${url}/${id}" "${curl_args[@]}"
+          done < <(jq -r '.ids[]' <<<"$plan")
+
+          curl -fsS -X POST "$url" "${curl_args[@]}" -H 'Content-Type: application/json' -d "$(jq -c '.body' <<<"$plan")"
+          echo "Trusted publisher for $PACKAGE_NAME configured successfully"

@@ -1,52 +1,124 @@
-# Publish an NPM package with trusted publishing (OIDC)
+# NPM trusted publishing workflow
 
-A workflow for bootstrapping npm trusted publishing on the **public** Zendesk NPM packages. For packages not yet on npm, it performs an initial token-based publish. It then configures the npm trusted publisher for the package. Ongoing publishes use OIDC in the caller workflow.
+## Overview
 
-This requires a `package.json` or similar configured for publishing in the caller repository.
+This document describes the reusable GitHub Actions workflow for bootstrapping [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) (OIDC) on public Zendesk npm packages.
 
-## Workflow file
+The workflow performs one-time setup: it registers a trusted publisher on npm so that a designated GitHub Actions workflow in the caller repository can publish packages using short-lived OIDC credentials instead of a long-lived `NPM_TOKEN`.
 
-This is the location of the workflow file relative to this repository:
+This workflow does not build, test, or publish release versions. Release publishing remains the responsibility of a separate caller workflow.
+
+### Bootstrap behavior
+
+| Package state on npm | Actions performed |
+| --- | --- |
+| Not published | Set version to `0.0.0`, publish with `NPM_TOKEN` + TOTP, configure trusted publisher |
+| Already published | Skip publish; verify trusted publisher against inputs and reconfigure on mismatch |
+
+The `0.0.0` placeholder allows the caller workflow to publish the first real version (for example `1.0.0`) without a duplicate-version conflict.
+
+Re-running the workflow is idempotent: existing packages skip the placeholder publish. If the trusted publisher already matches the workflow inputs, it is left unchanged; otherwise it is reconfigured.
+
+### When to use
+
+- You are setting up OIDC publishing for a new or existing package for the first time
+- You need npm to trust a specific GitHub Actions workflow and environment in your repository
+- The package is new on npm and needs an initial `0.0.0` placeholder publish before trusted publishing can be configured
+- You renamed a release workflow, changed the GitHub environment, or moved the package to a different repository and need the trusted publisher updated
+
+## Prerequisites
+
+| Requirement | Notes |
+| --- | --- |
+| npm CLI ≥ 11.5.1 | Minimum version for trusted publishing; [npm documentation](https://docs.npmjs.com/trusted-publishers/) |
+| Node.js ≥ 22.14.0 | Recommended for caller OIDC publish workflows |
+| `package.json` | Must exist at the path specified by `package-json-file-path` |
+| Repository secrets | `NPM_TOKEN`, `NPM_TOTP_DEVICE` on the caller repository |
+| GitHub environment | `npm-publish` (or the value passed to `github-environment`) on the OIDC publish job |
+
+## Workflow reference
+
+**Path in this repository:**
 
 `.github/workflows/npm-trusted-publication.yml`
 
-To call it from your repository you'll need to use:
+**Reference from a caller repository:**
 
 `zendesk/gw/.github/workflows/npm-trusted-publication.yml@main`
 
-## Required inputs
+## Inputs
 
-| Input | Description |
-| --- | --- |
-| `package-name` | required, npm package name |
-| `publish-workflow` | required, caller workflow filename, for example `publish.yml` |
-| `repository` | required, caller repository in `owner/repo` format |
-| `package-json-file-path` | optional, default `package.json`, relative path to `package.json` |
-| `github-environment` | optional, default `npm-publish`, GitHub environment registered with npm trusted publishing |
-| `secrets.NPM_TOKEN` | required, repository secret containing the NPM API key |
-| `secrets.NPM_TOTP_DEVICE` | required, organization secret containing the NPM 2FA TOTP code |
+| Input | Required | Default | Description |
+| --- | --- | --- | --- |
+| `package-name` | Yes | — | npm package name |
+| `publish-workflow` | Yes | — | Caller workflow filename used for OIDC publishes (for example `publish.yml`). Must match exactly, including extension. |
+| `repository` | Yes | — | Caller repository in `owner/repo` format |
+| `package-json-file-path` | No | `package.json` | Relative path to `package.json` from the repository root |
+| `github-environment` | No | `npm-publish` | GitHub environment name registered with the npm trusted publisher |
 
-## How to use
+## Caller workflow requirements
 
-Create a workflow in your repository that calls this reusable workflow. See the example below.
+The workflow identified by `publish-workflow` must satisfy the following for OIDC release publishes:
 
-The caller workflow should use `permissions.id-token: write` for OIDC publishes. Set `environment: npm-publish` on the job that performs OIDC publish.
+- `permissions.id-token: write` at the workflow or job level
+- `environment` set to the value registered with npm (default: `npm-publish`)
+- npm CLI ≥ 11.5.1
+- No `NPM_TOKEN` on the OIDC publish step
 
-## Example usage
+## Configuration
 
-Here is an example workflow that bootstraps trusted publishing:
+1. Add `NPM_TOKEN` and `NPM_TOTP_DEVICE` repository secrets to the caller repository.
+2. Create a workflow that invokes `zendesk/gw/.github/workflows/npm-trusted-publication.yml@main`.
+3. Pass `package-name`, `publish-workflow`, `repository`, and optionally `package-json-file-path`.
+
+## Example: single package
 
 ```yml
-name: npm trusted publish
+name: bootstrap npm trusted publishing
+
+on:
 
 jobs:
-  call-workflow:
+  bootstrap:
     uses: zendesk/gw/.github/workflows/npm-trusted-publication.yml@main
-    secrets:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      NPM_TOTP_DEVICE: ${{ secrets.NPM_TOTP_DEVICE }}
+    secrets: inherit
     with:
       package-name: '@zendesk/example-package'
-      publish-workflow: npm-trusted-publish.yml
+      publish-workflow: publish.yml
       repository: ${{ github.repository }}
 ```
+
+Use `contents: write` only when the workflow modifies the repository (for example version bumps or release creation).
+
+## Example: multiple packages
+
+Each npm package requires a separate trusted publisher registration. Invoke the bootstrap workflow once per package with distinct `package-name` and `package-json-file-path` values.
+
+```yml
+name: bootstrap npm trusted publishing
+
+on:
+
+jobs:
+  bootstrap:
+    strategy:
+      matrix:
+        include:
+          - package-name: '@zendesk/package-a'
+            package-json-file-path: packages/package-a/package.json
+          - package-name: '@zendesk/package-b'
+            package-json-file-path: packages/package-b/package.json
+    uses: zendesk/gw/.github/workflows/npm-trusted-publication.yml@main
+    secrets: inherit
+    with:
+      package-name: ${{ matrix.package-name }}
+      package-json-file-path: ${{ matrix.package-json-file-path }}
+      publish-workflow: publish.yml
+      repository: ${{ github.repository }}
+```
+
+After bootstrap completes, the OIDC publish workflow is responsible for building and publishing each package at its release version.
+
+## References
+
+- [npm trusted publishers (npm)](https://docs.npmjs.com/trusted-publishers/)
