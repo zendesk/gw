@@ -81,6 +81,7 @@ jobs:
       - name: Initial publish with token
         if: steps.package-exists.outputs.exists != 'true'
         env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
           PACKAGE_JSON_FILE_PATH: ${{ inputs.package-json-file-path }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOTP_DEVICE: ${{ secrets.NPM_TOTP_DEVICE }}
