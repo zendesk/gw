@@ -128,7 +128,7 @@ jobs:
                     + ($e | map("  current: repository=\(.claims.repository) workflow=\(.claims.workflow_ref.file) environment=\(.claims.environment)"))
                     + ["  expected: repository=\($repo) workflow=\($wf) environment=\($env)"]
                   else
-                    ["No trusted publisher configured for \($pkg)"]
+                    ["No trusted publisher configured for \($pkg). Configuring now."]
                   end
                 ),
                 ids: ($e | map(.id // empty)),
@@ -144,4 +144,5 @@ jobs:
           done < <(jq -r '.ids[]' <<<"$plan")
 
           curl -fsS -X POST "$url" "${curl_args[@]}" -H 'Content-Type: application/json' -d "$(jq -c '.body' <<<"$plan")"
+          echo
           echo "Trusted publisher for $PACKAGE_NAME configured successfully"
