@@ -61,6 +61,7 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
+          npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
           if npm view "$PACKAGE_NAME" version >/dev/null 2>&1; then
             echo "Package $PACKAGE_NAME exists on npmjs"
             echo "exists=true" >> "$GITHUB_OUTPUT"
