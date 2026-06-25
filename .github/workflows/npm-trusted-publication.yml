@@ -34,7 +34,7 @@ jobs:
     env:
       NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:
@@ -60,15 +60,14 @@ jobs:
         id: package-exists
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
-          npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
-          if npm view "$PACKAGE_NAME" version >/dev/null 2>&1; then
+          encoded="${PACKAGE_NAME//\//%2F}"
+          if curl -fsS "https://registry.npmjs.org/${encoded}" >/dev/null; then
             echo "Package $PACKAGE_NAME exists on npmjs"
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Package $PACKAGE_NAME does not exist on npmjs"
+            echo "Package $PACKAGE_NAME is not currently published on npmjs"
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
       
