@@ -17,7 +17,7 @@ on:
         required: true
         type: string
       github-environment:
-        required: false
+        required: true
         type: string
         default: npm-publish
     secrets:
