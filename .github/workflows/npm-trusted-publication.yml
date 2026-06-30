@@ -20,11 +20,6 @@ on:
         required: true
         type: string
         default: npm-publish
-    secrets:
-      NPM_TOKEN:
-        required: true
-      NPM_TOTP_DEVICE:
-        required: true
 
 permissions:
   contents: read
@@ -46,6 +41,18 @@ jobs:
         run: |
           npm install -g npm@11.5.1
           sudo apt-get update && sudo apt-get install -y --no-install-recommends oathtool jq
+
+      - name: Validate npm credentials
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOTP_DEVICE: ${{ secrets.NPM_TOTP_DEVICE }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$NPM_TOKEN" || -z "$NPM_TOTP_DEVICE" ]]; then
+            echo "NPM_TOKEN and NPM_TOTP_DEVICE must be available in the ${{ inputs.github-environment }} environment."
+            echo "Caller workflows must use secrets: inherit and must not map these secrets explicitly from a job without that environment."
+            exit 1
+          fi
 
       - name: Validate package json file path and name
         env:

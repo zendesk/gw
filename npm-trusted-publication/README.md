@@ -33,8 +33,8 @@ Re-running the workflow is idempotent: existing packages skip the placeholder pu
 | npm CLI ≥ 11.5.1 | Minimum version for trusted publishing; [npm documentation](https://docs.npmjs.com/trusted-publishers/) |
 | Node.js ≥ 22.14.0 | Recommended for caller OIDC publish workflows |
 | `package.json` | Must exist at the path specified by `package-json-file-path` |
-| Repository secrets | `NPM_TOKEN`, `NPM_TOTP_DEVICE` on the caller repository |
-| GitHub environment | `npm-publish` (or the value passed to `github-environment`) on the OIDC publish job |
+| `NPM_TOKEN`, `NPM_TOTP_DEVICE` | Stored in the GitHub environment named by `github-environment` (default `npm-publish`), or at repository/org scope |
+| GitHub environment | `npm-publish` (or the value passed to `github-environment`) must exist in the caller repository |
 
 ## Workflow reference
 
@@ -54,9 +54,14 @@ Re-running the workflow is idempotent: existing packages skip the placeholder pu
 | `publish-workflow` | Yes | — | Caller workflow filename used for OIDC publishes (for example `publish.yml`). Must match exactly, including extension. |
 | `repository` | Yes | — | Caller repository in `owner/repo` format |
 | `package-json-file-path` | No | `package.json` | Relative path to `package.json` from the repository root |
-| `github-environment` | No | `npm-publish` | GitHub environment name registered with the npm trusted publisher |
+| `github-environment` | No | `npm-publish` | GitHub environment that stores npm credentials and is registered with the npm trusted publisher |
 
 ## Caller workflow requirements
+
+Caller jobs that invoke this reusable workflow **cannot** set `environment` (GitHub Actions limitation). Credentials are resolved inside the reusable workflow job from the environment named by `github-environment`.
+
+- Use `secrets: inherit` on the caller job. Do **not** map `NPM_TOKEN` or `NPM_TOTP_DEVICE` explicitly with `${{ secrets.* }}` from the caller — that resolves in the caller job context (without the environment) and passes empty values.
+- Pass `github-environment` when credentials live in a deployment environment rather than repository secrets.
 
 The workflow identified by `publish-workflow` must satisfy the following for OIDC release publishes:
 
@@ -67,9 +72,9 @@ The workflow identified by `publish-workflow` must satisfy the following for OID
 
 ## Configuration
 
-1. Add `NPM_TOKEN` and `NPM_TOTP_DEVICE` repository secrets to the caller repository.
-2. Create a workflow that invokes `zendesk/gw/.github/workflows/npm-trusted-publication.yml@main`.
-3. Pass `package-name`, `publish-workflow`, `repository`, and optionally `package-json-file-path`.
+1. Add `NPM_TOKEN` and `NPM_TOTP_DEVICE` to the caller repository's `npm-publish` environment (or repository/org secrets).
+2. Create a workflow that invokes `zendesk/gw/.github/workflows/npm-trusted-publication.yml@main` with `secrets: inherit`.
+3. Pass `package-name`, `publish-workflow`, `repository`, `github-environment`, and optionally `package-json-file-path`.
 
 ## Example: single package
 
@@ -77,6 +82,7 @@ The workflow identified by `publish-workflow` must satisfy the following for OID
 name: bootstrap npm trusted publishing
 
 on:
+  workflow_dispatch:
 
 jobs:
   bootstrap:
@@ -86,6 +92,7 @@ jobs:
       package-name: '@zendesk/example-package'
       publish-workflow: publish.yml
       repository: ${{ github.repository }}
+      github-environment: npm-publish
 ```
 
 Use `contents: write` only when the workflow modifies the repository (for example version bumps or release creation).
@@ -98,6 +105,7 @@ Each npm package requires a separate trusted publisher registration. Invoke the 
 name: bootstrap npm trusted publishing
 
 on:
+  workflow_dispatch:
 
 jobs:
   bootstrap:
@@ -115,6 +123,7 @@ jobs:
       package-json-file-path: ${{ matrix.package-json-file-path }}
       publish-workflow: publish.yml
       repository: ${{ github.repository }}
+      github-environment: npm-publish
 ```
 
 After bootstrap completes, the OIDC publish workflow is responsible for building and publishing each package at its release version.
