@@ -58,10 +58,11 @@ Re-running the workflow is idempotent: existing packages skip the placeholder pu
 
 ## Caller workflow requirements
 
-Caller jobs that invoke this reusable workflow **cannot** set `environment` (GitHub Actions limitation). Credentials are resolved inside the reusable workflow job from the environment named by `github-environment`.
+Caller jobs that invoke the reusable workflow **cannot** set `environment` (GitHub Actions limitation). Credentials are resolved inside the reusable workflow job from the environment named by `github-environment`.
 
-- Use `secrets: inherit` on the caller job. Do **not** map `NPM_TOKEN` or `NPM_TOTP_DEVICE` explicitly with `${{ secrets.* }}` from the caller — that resolves in the caller job context (without the environment) and passes empty values.
+- Do **not** map `NPM_TOKEN` or `NPM_TOTP_DEVICE` explicitly with `${{ secrets.* }}` from the caller — that resolves in the caller job context (without the environment) and passes empty values.
 - Pass `github-environment` when credentials live in a deployment environment rather than repository secrets.
+- For environment-only credentials, prefer calling the composite action from a job with `environment` set (see example below).
 
 The workflow identified by `publish-workflow` must satisfy the following for OIDC release publishes:
 
@@ -73,10 +74,12 @@ The workflow identified by `publish-workflow` must satisfy the following for OID
 ## Configuration
 
 1. Add `NPM_TOKEN` and `NPM_TOTP_DEVICE` to the caller repository's `npm-publish` environment (or repository/org secrets).
-2. Create a workflow that invokes `zendesk/gw/.github/workflows/npm-trusted-publication.yml@main` with `secrets: inherit`.
+2. Create a bootstrap workflow using either the reusable workflow or the composite action.
 3. Pass `package-name`, `publish-workflow`, `repository`, `github-environment`, and optionally `package-json-file-path`.
 
-## Example: single package
+`NPM_TOKEN` must be a classic automation token with 2FA enabled. Granular access tokens with bypass 2FA are not supported for `npm trust` commands.
+
+## Example: reusable workflow
 
 ```yml
 name: bootstrap npm trusted publishing
@@ -87,7 +90,6 @@ on:
 jobs:
   bootstrap:
     uses: zendesk/gw/.github/workflows/npm-trusted-publication.yml@main
-    secrets: inherit
     with:
       package-name: '@zendesk/example-package'
       publish-workflow: publish.yml
@@ -95,11 +97,41 @@ jobs:
       github-environment: npm-publish
 ```
 
-Use `contents: write` only when the workflow modifies the repository (for example version bumps or release creation).
+## Example: composite action (recommended for environment-only secrets)
+
+```yml
+name: bootstrap npm trusted publishing
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    environment: npm-publish
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.14.1'
+          registry-url: https://registry.npmjs.org
+      - uses: zendesk/gw/.github/actions/npm-trusted-publication@main
+        with:
+          package-name: '@zendesk/example-package'
+          package-json-file-path: package.json
+          publish-workflow: publish.yml
+          repository: ${{ github.repository }}
+          github-environment: npm-publish
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOTP_DEVICE: ${{ secrets.NPM_TOTP_DEVICE }}
+```
 
 ## Example: multiple packages
 
 Each npm package requires a separate trusted publisher registration. Invoke the bootstrap workflow once per package with distinct `package-name` and `package-json-file-path` values.
+
+Use `contents: write` only when the workflow modifies the repository (for example version bumps or release creation).
 
 ```yml
 name: bootstrap npm trusted publishing
@@ -117,7 +149,6 @@ jobs:
           - package-name: '@zendesk/package-b'
             package-json-file-path: packages/package-b/package.json
     uses: zendesk/gw/.github/workflows/npm-trusted-publication.yml@main
-    secrets: inherit
     with:
       package-name: ${{ matrix.package-name }}
       package-json-file-path: ${{ matrix.package-json-file-path }}

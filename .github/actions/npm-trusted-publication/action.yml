@@ -1,0 +1,42 @@
+name: NPM trusted publication bootstrap
+description: Bootstrap npm trusted publishing for a package
+inputs:
+  package-name:
+    description: npm package name
+    required: true
+  package-json-file-path:
+    description: Relative path to package.json
+    required: false
+    default: package.json
+  publish-workflow:
+    description: Caller workflow filename used for OIDC publishes
+    required: true
+  repository:
+    description: Caller repository in owner/repo format
+    required: true
+  github-environment:
+    description: GitHub environment registered with npm trusted publishing
+    required: false
+    default: npm-publish
+
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        npm install -g npm@11.5.1
+        sudo apt-get update && sudo apt-get install -y --no-install-recommends oathtool jq
+
+    - name: Bootstrap trusted publisher
+      shell: bash
+      env:
+        PACKAGE_NAME: ${{ inputs.package-name }}
+        PACKAGE_JSON_FILE_PATH: ${{ inputs.package-json-file-path }}
+        PUBLISH_WORKFLOW: ${{ inputs.publish-workflow }}
+        REPOSITORY: ${{ inputs.repository }}
+        GITHUB_ENVIRONMENT: ${{ inputs.github-environment }}
+        NPM_TOKEN: ${{ env.NPM_TOKEN }}
+        NPM_TOTP_DEVICE: ${{ env.NPM_TOTP_DEVICE }}
+      run: bash "${GITHUB_ACTION_PATH}/bootstrap.sh"
