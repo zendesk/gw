@@ -18,6 +18,11 @@ require_env NPM_TOTP_DEVICE
 
 otp="$(oathtool --base32 --totp "$NPM_TOTP_DEVICE")"
 
+# setup-node with registry-url can export NODE_AUTH_TOKEN without OTP, which
+# overrides the npmrc we write and breaks 2FA-protected npm commands.
+unset NODE_AUTH_TOKEN
+unset NPM_CONFIG_USERCONFIG
+
 write_npmrc() {
   local npmrc
   npmrc="$(mktemp)"
@@ -31,12 +36,39 @@ EOF
 
 write_npmrc
 
-echo "Verifying npm authentication"
-if ! npm whoami --registry https://registry.npmjs.org; then
-  echo "npm whoami failed. Trusted publisher setup requires a classic automation token with 2FA enabled."
-  echo "Granular access tokens with bypass 2FA are not supported for npm trust commands."
-  exit 1
-fi
+verify_npm_credentials() {
+  local url="https://registry.npmjs.org/-/package/${PACKAGE_NAME//\//%2F}/trust"
+  local response http_code body
+
+  response="$(curl -sS -w $'\n%{http_code}' \
+    -H "Authorization: Bearer ${NPM_TOKEN}" \
+    -H "npm-otp: ${otp}" \
+    "$url")"
+  http_code="${response##*$'\n'}"
+  body="${response%$'\n'*}"
+
+  case "$http_code" in
+    200)
+      echo "npm trust API credentials verified"
+      return 0
+      ;;
+    401|403)
+      echo "npm trust API rejected credentials (HTTP ${http_code}): ${body}"
+      echo "Trusted publisher bootstrap requires credentials that can manage package trust settings."
+      echo "If publish already works with NPM_TOKEN, the token may be a granular access token with bypass 2FA, which npm trust does not support."
+      echo "Use a classic automation token with 2FA enabled for bootstrap, or configure the trusted publisher manually on npmjs.com."
+      echo "See https://docs.npmjs.com/cli/v11/commands/npm-trust/"
+      return 1
+      ;;
+    *)
+      echo "Unexpected npm trust API response (HTTP ${http_code}): ${body}"
+      return 1
+      ;;
+  esac
+}
+
+echo "Verifying npm credentials"
+verify_npm_credentials
 
 [[ "$PACKAGE_JSON_FILE_PATH" != /* ]] || { echo "package-json-file-path must not be an absolute path"; exit 1; }
 [[ -f "$PACKAGE_JSON_FILE_PATH" ]] || { echo "package-json-file-path does not exist"; exit 1; }

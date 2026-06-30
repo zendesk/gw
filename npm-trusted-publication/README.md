@@ -111,10 +111,6 @@ jobs:
     environment: npm-publish
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '24.14.1'
-          registry-url: https://registry.npmjs.org
       - uses: zendesk/gw/.github/actions/npm-trusted-publication@main
         with:
           package-name: '@zendesk/example-package'
